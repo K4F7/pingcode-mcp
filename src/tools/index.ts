@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { PingCodeClient } from "../pingcode/client.js";
+import { registerAcceptanceTools } from "./acceptance.js";
 import { registerAssignmentTools } from "./assignment.js";
 import { registerCollaborationTools } from "./collaboration.js";
 import { registerContextTools } from "./context.js";
@@ -18,4 +19,5 @@ export function registerTools(server: McpServer, client: PingCodeClient): void {
   registerCollaborationTools(context);
   registerRelationTools(context);
   registerContextTools(context);
+  registerAcceptanceTools(context);
 }

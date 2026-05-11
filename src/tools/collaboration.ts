@@ -1,6 +1,31 @@
 import { z } from "zod";
 import { compactParams, jsonResponse, resourcePath, type ToolContext } from "./common.js";
 
+const snippetFormatSchema = z.enum([
+  "clike",
+  "css",
+  "dart",
+  "django",
+  "dockerfile",
+  "go",
+  "markdown",
+  "nginx",
+  "python",
+  "php",
+  "shell",
+  "sql",
+  "swift",
+  "html",
+  "javascript",
+  "jsx",
+  "pascal",
+  "sass",
+  "stylus",
+  "vue",
+  "yaml",
+  "haskell",
+]);
+
 export const principalTypeSchema = z.enum([
   "work_item",
   "test_case",
@@ -49,12 +74,12 @@ export function registerCollaborationTools({ server, client }: ToolContext): voi
 
   server.tool(
     "pingcode_upload_code_snippet",
-    "Upload a code snippet attachment to a PingCode artifact. This writes to PingCode via POST /v1/attachments.",
+    "Upload a code snippet attachment to a PingCode artifact. Format must be one of PingCode's snippet enums; use pingcode_create_comment for plain text summaries and do not upload sensitive raw acceptance artifacts.",
     {
       principal_type: principalTypeSchema.describe("Artifact type, e.g. work_item, test_case, test_run, ticket, idea, page."),
       principal_id: z.string().min(1).describe("Artifact id."),
       title: z.string().min(1).describe("Snippet title."),
-      format: z.string().min(1).describe("Snippet language/format, e.g. javascript, typescript, text."),
+      format: snippetFormatSchema.describe("Snippet format enum. Unsupported examples include text and typescript; use markdown or javascript when appropriate."),
       content: z.string().min(1).describe("Snippet content."),
       comment_id: z.string().optional().describe("Optional comment id to attach to."),
     },
