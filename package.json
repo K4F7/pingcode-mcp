@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "MCP server for PingCode REST API work items, releases, and assignment workflows.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/K4F7/pingcode-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/K4F7/pingcode-mcp/issues"
+  },
+  "homepage": "https://github.com/K4F7/pingcode-mcp#readme",
   "bin": {
     "pingcode-mcp": "dist/index.js"
   },
