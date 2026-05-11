@@ -48,15 +48,20 @@ export class PingCodeClient {
   ): Promise<T> {
     const token = await this.getAccessToken();
     const url = this.buildUrl(path, query);
-    const response = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-        ...(body ? { "Content-Type": "application/json" } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    let response: Response;
+    try {
+      response = await fetchWithRetry(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          ...(body ? { "Content-Type": "application/json" } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      throw new PingCodeError(formatNetworkError(method, path, error));
+    }
 
     const responseBody = await parseResponse(response);
     if (!response.ok) {
@@ -81,7 +86,12 @@ export class PingCodeClient {
       client_id: this.config.PINGCODE_CLIENT_ID,
       client_secret: this.config.PINGCODE_CLIENT_SECRET,
     });
-    const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    let response: Response;
+    try {
+      response = await fetchWithRetry(url, { method: "GET", headers: { Accept: "application/json" } });
+    } catch (error) {
+      throw new PingCodeError(formatNetworkError("GET", "/v1/auth/token", error));
+    }
     const body = await parseResponse(response);
 
     if (!response.ok) {
@@ -116,6 +126,23 @@ export class PingCodeClient {
   }
 }
 
+async function fetchWithRetry(url: string, init: RequestInit, attempts = 3): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+    }
+  }
+
+  throw lastError;
+}
+
 async function parseResponse(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text) {
@@ -135,4 +162,13 @@ function formatApiError(status: number, body: unknown): string {
   }
 
   return `PingCode API request failed (${status}).`;
+}
+
+function formatNetworkError(method: string, path: string, error: unknown): string {
+  if (error instanceof Error) {
+    const cause = error.cause instanceof Error ? ` Cause: ${error.cause.message}` : "";
+    return `PingCode API network request failed for ${method} ${path}: ${error.message}.${cause}`;
+  }
+
+  return `PingCode API network request failed for ${method} ${path}: ${String(error)}`;
 }
