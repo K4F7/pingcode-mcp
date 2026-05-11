@@ -40,8 +40,16 @@ export class PingCodeClient {
     return this.request<T>("PATCH", path, body);
   }
 
+  async put<T>(path: string, body?: Record<string, unknown>): Promise<T> {
+    return this.request<T>("PUT", path, body);
+  }
+
+  async delete<T>(path: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request<T>("DELETE", path, undefined, query);
+  }
+
   private async request<T>(
-    method: "GET" | "POST" | "PATCH" | "DELETE",
+    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
     path: string,
     body?: Record<string, unknown>,
     query?: Record<string, unknown>,
