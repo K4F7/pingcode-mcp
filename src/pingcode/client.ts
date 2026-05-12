@@ -6,6 +6,13 @@ interface TokenResponse {
   expires_in?: number;
 }
 
+interface MultipartFile {
+  fieldName: string;
+  filename: string;
+  contentType?: string;
+  data: BlobPart;
+}
+
 export class PingCodeError extends Error {
   constructor(
     message: string,
@@ -48,10 +55,27 @@ export class PingCodeClient {
     return this.request<T>("DELETE", path, undefined, query);
   }
 
+  async uploadMultipart<T>(
+    path: string,
+    fields: Record<string, unknown>,
+    file: MultipartFile,
+    query?: Record<string, unknown>,
+  ): Promise<T> {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) {
+      if (value === undefined || value === null || value === "") {
+        continue;
+      }
+      form.set(key, String(value));
+    }
+    form.set(file.fieldName, new Blob([file.data], { type: file.contentType }), file.filename);
+    return this.request<T>("POST", path, form, query);
+  }
+
   private async request<T>(
     method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
     path: string,
-    body?: Record<string, unknown>,
+    body?: Record<string, unknown> | FormData,
     query?: Record<string, unknown>,
   ): Promise<T> {
     const token = await this.getAccessToken();
@@ -63,9 +87,9 @@ export class PingCodeClient {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: "application/json",
-          ...(body ? { "Content-Type": "application/json" } : {}),
+          ...(body && !(body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
         },
-        body: body ? JSON.stringify(body) : undefined,
+        body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
       });
     } catch (error) {
       throw new PingCodeError(formatNetworkError(method, path, error));

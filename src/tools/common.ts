@@ -1,10 +1,16 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import type { PingCodeClient } from "../pingcode/client.js";
 
 export interface ToolContext {
   server: McpServer;
   client: PingCodeClient;
 }
+
+export const paginationSchema = {
+  page_size: z.number().int().min(1).max(100).optional().describe("Page size; PingCode maximum is 100."),
+  page_index: z.number().int().min(0).optional().describe("Page index."),
+};
 
 export function jsonResponse(data: unknown) {
   return {

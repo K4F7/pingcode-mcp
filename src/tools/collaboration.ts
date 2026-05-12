@@ -1,3 +1,5 @@
+import { stat, readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import { z } from "zod";
 import { compactParams, jsonResponse, resourcePath, type ToolContext } from "./common.js";
 
@@ -34,6 +36,20 @@ export const principalTypeSchema = z.enum([
   "idea",
   "page",
 ]);
+
+const uploadPrincipalTypeSchema = z.enum([
+  "work_item",
+  "work_item_deliverable",
+  "test_case",
+  "test_run",
+  "ticket",
+  "idea",
+  "page",
+]);
+
+const defaultUploadMaxBytes = 10 * 1024 * 1024;
+const hardUploadMaxBytes = 25 * 1024 * 1024;
+const blockedUploadBasenames = new Set([".env", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"]);
 
 export function registerCollaborationTools({ server, client }: ToolContext): void {
   server.tool(
@@ -84,6 +100,51 @@ export function registerCollaborationTools({ server, client }: ToolContext): voi
       comment_id: z.string().optional().describe("Optional comment id to attach to."),
     },
     async (args) => jsonResponse(await client.post("/v1/attachments", compactParams(args))),
+  );
+
+  server.tool(
+    "pingcode_upload_attachment",
+    "Upload a local file attachment to a PingCode artifact. This writes to PingCode via multipart POST /v1/attachments; do not upload sensitive raw acceptance artifacts, real subject data, videos, questionnaire content, or sensitive JSON.",
+    {
+      principal_type: uploadPrincipalTypeSchema.describe("Artifact type, e.g. work_item, work_item_deliverable, test_case, test_run, ticket, idea, page."),
+      principal_id: z.string().min(1).describe("Artifact id."),
+      file_path: z.string().min(1).describe("Local file path to upload."),
+      filename: z.string().optional().describe("Optional uploaded filename override."),
+      content_type: z.string().optional().describe("Optional MIME type."),
+      comment_id: z.string().optional().describe("Optional comment id to attach to."),
+      max_bytes: z.number().int().positive().max(hardUploadMaxBytes).optional().describe("Maximum allowed file size in bytes; defaults to 10485760 and cannot exceed 26214400."),
+    },
+    async ({ principal_type, principal_id, file_path, filename, content_type, comment_id, max_bytes }) => {
+      const uploadName = filename ?? basename(file_path);
+      if (blockedUploadBasenames.has(basename(file_path)) || blockedUploadBasenames.has(uploadName)) {
+        throw new Error("Refusing to upload common secret file names.");
+      }
+
+      const fileStat = await stat(file_path);
+      if (!fileStat.isFile()) {
+        throw new Error("file_path must point to a regular file.");
+      }
+
+      const limit = max_bytes ?? defaultUploadMaxBytes;
+      if (fileStat.size > limit) {
+        throw new Error(`File size ${fileStat.size} exceeds max_bytes ${limit}.`);
+      }
+
+      const data = await readFile(file_path);
+      return jsonResponse(
+        await client.uploadMultipart(
+          "/v1/attachments",
+          { title: uploadName },
+          {
+            fieldName: "file",
+            filename: uploadName,
+            contentType: content_type,
+            data,
+          },
+          compactParams({ principal_type, principal_id, comment_id }),
+        ),
+      );
+    },
   );
 
   server.tool(

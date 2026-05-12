@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { compactParams, jsonResponse, resourcePath, type ToolContext } from "./common.js";
+import { compactParams, jsonResponse, paginationSchema, resourcePath, type ToolContext } from "./common.js";
 
 const stringList = z.array(z.string()).optional();
 const propertiesSchema = z.record(z.string(), z.unknown()).optional();
@@ -30,6 +30,7 @@ const workItemListSchema = {
   include_public_image_token: z.string().optional().describe("Fields that need public image token, comma-separated."),
   include_deleted: z.boolean().optional().describe("Whether to include deleted work items."),
   include_archived: z.boolean().optional().describe("Whether to include archived work items."),
+  ...paginationSchema,
 };
 
 const workItemCreateSchema = {
@@ -126,14 +127,55 @@ export function registerWorkItemTools({ server, client }: ToolContext): void {
 
   server.tool(
     "pingcode_create_work_item",
-    "Create a PingCode work item. Wraps POST /v1/project/work_items.",
+    "Create a PingCode work item. This writes to PingCode via POST /v1/project/work_items.",
     workItemCreateSchema,
     async (args) => jsonResponse(await client.post("/v1/project/work_items", compactParams(args))),
   );
 
   server.tool(
+    "pingcode_batch_create_work_items",
+    "Create multiple PingCode work items sequentially. This writes to PingCode via repeated POST /v1/project/work_items calls.",
+    {
+      items: z.array(z.object(workItemCreateSchema)).min(1).max(50).describe("Work items to create sequentially."),
+      continue_on_error: z.boolean().optional().describe("Continue creating remaining items after an item fails."),
+    },
+    async ({ items, continue_on_error }) => {
+      const results = [];
+      let createdCount = 0;
+      let failedCount = 0;
+
+      for (const [index, item] of items.entries()) {
+        try {
+          const result = await client.post("/v1/project/work_items", compactParams(item));
+          createdCount += 1;
+          results.push({ index, ok: true, result });
+        } catch (error) {
+          failedCount += 1;
+          const message = error instanceof Error ? error.message : String(error);
+          results.push({ index, ok: false, error: message });
+          if (!continue_on_error) {
+            throw error;
+          }
+        }
+      }
+
+      return jsonResponse({ created_count: createdCount, failed_count: failedCount, results });
+    },
+  );
+
+  server.tool(
+    "pingcode_delete_work_item",
+    "Delete a PingCode work item. This writes to PingCode via DELETE /v1/project/work_items/{work_item_id}.",
+    {
+      work_item_id: z.string().min(1).describe("PingCode work item id."),
+    },
+    async ({ work_item_id }) =>
+      jsonResponse(await client.delete(resourcePath("/v1/project/work_items/{work_item_id}", { work_item_id }))),
+  );
+
+  server.tool(
     "pingcode_update_work_item",
-    "Partially update a PingCode work item. Wraps PATCH /v1/project/work_items/{work_item_id}.",
+    "Partially update a PingCode work item. This writes to PingCode via PATCH /v1/project/work_items/{work_item_id}.",
     workItemUpdateSchema,
     async ({ work_item_id, ...body }) =>
       jsonResponse(

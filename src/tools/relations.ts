@@ -48,7 +48,7 @@ export function registerRelationTools({ server, client }: ToolContext): void {
 
   server.tool(
     "pingcode_create_relation",
-    "Create a generic non-work_item-to-work_item relation between PingCode artifacts. Wraps POST /v1/relations; use pingcode_link_work_items for work item links.",
+    "Create a generic non-work_item-to-work_item relation between PingCode artifacts. This writes to PingCode via POST /v1/relations; use pingcode_link_work_items for work item links.",
     genericRelationCreateSchema,
     async (args) => {
       if (isWorkItemRelation(args)) {
