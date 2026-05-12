@@ -74,10 +74,14 @@
 - `pingcode_create_project`（写）
 - `pingcode_update_project`（写）
 - `pingcode_list_project_members`
+- `pingcode_list_boards`
+- `pingcode_list_board_entries`
 
 ### 工作项
 
 - `pingcode_list_work_items`
+- `pingcode_list_work_items_compact`
+- `pingcode_summarize_sprint_work_items`
 - `pingcode_create_work_item`（写）
 - `pingcode_batch_create_work_items`（写，顺序创建）
 - `pingcode_update_work_item`（写）
@@ -114,12 +118,23 @@
 
 ### 测试管理
 
+- `pingcode_list_test_plans`
+- `pingcode_create_test_plan`（写）
+- `pingcode_update_test_plan`（写）
 - `pingcode_list_test_cases`
 - `pingcode_create_test_case`（写）
 - `pingcode_batch_create_test_cases`（写）
 - `pingcode_list_test_runs`
 - `pingcode_create_test_run`（写）
 - `pingcode_batch_create_test_runs`（写）
+- `pingcode_update_test_run_status`（写）
+
+### Wiki 页面
+
+- `pingcode_create_page`（写）
+- `pingcode_list_pages`
+- `pingcode_get_page_content`
+- `pingcode_update_page`（写）
 
 ### 关系、上下文和分配
 
@@ -138,6 +153,8 @@
 
 - 项目归档/恢复。
 - 工作项归档/恢复。
+- 工作项状态流转接口；当前只能用 `pingcode_update_work_item` 设置 `state_id`。
+- 看板列移动接口；当前只能查询 board 和 entry。
 - 附件按 id 获取或由 MCP 直接下载；请先用 `pingcode_list_attachments` 获取元数据和 `download_url`。
 - 评论更新和富文本评论。
 - 通用跨域高级搜索；先使用各 list 工具的过滤条件和 `page_size` / `page_index` 分页。

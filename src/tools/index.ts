@@ -8,6 +8,7 @@ import { registerProjectTools } from "./projects.js";
 import { registerRelationTools } from "./relations.js";
 import { registerReleaseTools } from "./releases.js";
 import { registerTestManagementTools } from "./test-management.js";
+import { registerWikiTools } from "./wiki.js";
 import { registerWorkItemTools } from "./work-items.js";
 
 export function registerTools(server: McpServer, client: PingCodeClient): void {
@@ -22,4 +23,5 @@ export function registerTools(server: McpServer, client: PingCodeClient): void {
   registerRelationTools(context);
   registerContextTools(context);
   registerAcceptanceTools(context);
+  registerWikiTools(context);
 }

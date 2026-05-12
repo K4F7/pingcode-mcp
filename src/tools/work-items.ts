@@ -1,6 +1,102 @@
 import { z } from "zod";
 import { compactParams, jsonResponse, paginationSchema, resourcePath, type ToolContext } from "./common.js";
 
+type WorkItemSummary = {
+  id: unknown;
+  identifier: unknown;
+  title: unknown;
+  type: unknown;
+  assignee: unknown;
+  state: unknown;
+  sprint: unknown;
+  parent: unknown;
+};
+
+function summarizeWorkItem(item: Record<string, unknown>): WorkItemSummary {
+  return {
+    id: item.id,
+    identifier: item.identifier,
+    title: item.title,
+    type: item.type,
+    assignee: summarizeNamedObject(item.assignee),
+    state: summarizeNamedObject(item.state),
+    sprint: summarizeNamedObject(item.sprint),
+    parent: summarizeParent(item.parent),
+  };
+}
+
+function summarizeNamedObject(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const object = value as Record<string, unknown>;
+  return {
+    id: object.id,
+    name: object.display_name ?? object.name,
+    type: object.type,
+  };
+}
+
+function summarizeParent(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const object = value as Record<string, unknown>;
+  return {
+    id: object.id,
+    identifier: object.identifier,
+    title: object.title,
+  };
+}
+
+function summarizeWorkItemsResponse(response: unknown): unknown {
+  if (!response || typeof response !== "object") {
+    return response;
+  }
+  const data = response as Record<string, unknown>;
+  const values = Array.isArray(data.values) ? data.values : [];
+  return {
+    page_index: data.page_index,
+    page_size: data.page_size,
+    total: data.total,
+    values: values.map((item) => summarizeWorkItem(item as Record<string, unknown>)),
+  };
+}
+
+function sprintProgressSummary(response: unknown): unknown {
+  const compact = summarizeWorkItemsResponse(response) as Record<string, unknown>;
+  const values = Array.isArray(compact.values) ? compact.values as WorkItemSummary[] : [];
+  const byAssignee = new Map<string, { assignee: unknown; total: number; completed: number; remaining: number }>();
+  let completed = 0;
+
+  for (const item of values) {
+    const state = item.state as Record<string, unknown> | null;
+    const assignee = item.assignee as Record<string, unknown> | null;
+    const assigneeName = String(assignee?.name ?? "未分配");
+    const isCompleted = state?.type === "completed";
+    if (isCompleted) {
+      completed += 1;
+    }
+
+    const current = byAssignee.get(assigneeName) ?? { assignee: item.assignee, total: 0, completed: 0, remaining: 0 };
+    current.total += 1;
+    if (isCompleted) {
+      current.completed += 1;
+    } else {
+      current.remaining += 1;
+    }
+    byAssignee.set(assigneeName, current);
+  }
+
+  return {
+    total: values.length,
+    completed,
+    remaining: values.length - completed,
+    by_assignee: [...byAssignee.values()],
+    values,
+  };
+}
+
 const stringList = z.array(z.string()).optional();
 const propertiesSchema = z.record(z.string(), z.unknown()).optional();
 
@@ -124,6 +220,34 @@ export function registerWorkItemTools({ server, client }: ToolContext): void {
     "List PingCode work items. Wraps GET /v1/project/work_items.",
     workItemListSchema,
     async (args) => jsonResponse(await client.get("/v1/project/work_items", compactParams(args))),
+  );
+
+  server.tool(
+    "pingcode_list_work_items_compact",
+    "List PingCode work items with compact fields: identifier, title, assignee, state, sprint, and parent.",
+    workItemListSchema,
+    async (args) => jsonResponse(summarizeWorkItemsResponse(await client.get("/v1/project/work_items", compactParams(args)))),
+  );
+
+  server.tool(
+    "pingcode_summarize_sprint_work_items",
+    "Summarize work item progress for a sprint by total, completed count, remaining count, and assignee.",
+    {
+      project_id: z.string().min(1).describe("PingCode project id."),
+      sprint_id: z.string().min(1).describe("Sprint id."),
+      page_size: z.number().int().min(1).max(100).optional().describe("Page size; PingCode maximum is 100."),
+    },
+    async ({ project_id, sprint_id, page_size }) =>
+      jsonResponse(
+        sprintProgressSummary(
+          await client.get("/v1/project/work_items", {
+            project_ids: project_id,
+            sprint_ids: sprint_id,
+            page_size: page_size ?? 100,
+            page_index: 0,
+          }),
+        ),
+      ),
   );
 
   server.tool(

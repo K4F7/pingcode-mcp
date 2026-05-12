@@ -75,4 +75,29 @@ export function registerProjectTools({ server, client }: ToolContext): void {
     async ({ project_id }) =>
       jsonResponse(await client.get(resourcePath("/v1/project/projects/{project_id}/members", { project_id }))),
   );
+
+  server.tool(
+    "pingcode_list_boards",
+    "List boards for a PingCode project. Wraps GET /v1/project/projects/{project_id}/boards.",
+    {
+      project_id: z.string().min(1).describe("PingCode project id."),
+    },
+    async ({ project_id }) =>
+      jsonResponse(await client.get(resourcePath("/v1/project/projects/{project_id}/boards", { project_id }))),
+  );
+
+  server.tool(
+    "pingcode_list_board_entries",
+    "List board entries/columns for a PingCode project board. Wraps GET /v1/project/projects/{project_id}/boards/{board_id}/entries.",
+    {
+      project_id: z.string().min(1).describe("PingCode project id."),
+      board_id: z.string().min(1).describe("Board id."),
+    },
+    async ({ project_id, board_id }) =>
+      jsonResponse(
+        await client.get(
+          resourcePath("/v1/project/projects/{project_id}/boards/{board_id}/entries", { project_id, board_id }),
+        ),
+      ),
+  );
 }
