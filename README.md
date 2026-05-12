@@ -70,6 +70,7 @@
 
 ### 项目
 
+- `pingcode_get_project_schema`
 - `pingcode_list_projects`
 - `pingcode_create_project`（写）
 - `pingcode_update_project`（写）
@@ -79,6 +80,10 @@
 
 ### 工作项
 
+- `pingcode_get_work_item_tree`
+- `pingcode_get_sprint_health`
+- `pingcode_validate_work_item_payload`
+- `pingcode_preview_write_changes`
 - `pingcode_list_work_items`
 - `pingcode_list_work_items_compact`
 - `pingcode_summarize_sprint_work_items`
@@ -94,9 +99,11 @@
 
 ### 发布和 Sprint
 
+- `pingcode_list_releases_all_statuses`
 - `pingcode_list_releases`
 - `pingcode_create_release`（写）
 - `pingcode_update_release`（写）
+- `pingcode_list_sprints_all_statuses`
 - `pingcode_list_sprints`
 - `pingcode_create_sprint`（写）
 - `pingcode_update_sprint`（写）
