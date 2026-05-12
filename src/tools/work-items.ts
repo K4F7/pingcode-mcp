@@ -66,6 +66,7 @@ const workItemUpdateSchema = {
   state_id: z.string().optional().describe("State id."),
   assignee_id: z.string().optional().describe("Assignee user id."),
   parent_id: z.string().optional().describe("Parent work item id."),
+  sprint_id: z.string().optional().describe("Sprint id for scrum/hybrid projects."),
   version_ids: z.array(z.string()).optional().describe("Release/version ids."),
   board_id: z.string().optional().describe("Board id for kanban/hybrid projects."),
   entry_id: z.string().optional().describe("Board entry id for kanban/hybrid projects."),
@@ -194,7 +195,14 @@ export function registerWorkItemTools({ server, client }: ToolContext): void {
       property_name: z.string().min(1).describe("Property to update, e.g. assignee_id, state_id, priority_id, title."),
       property_value: z.unknown().describe("Property value."),
     },
-    async (args) => jsonResponse(await client.patch("/v1/project/work_items", args)),
+    async (args) => {
+      if (args.property_name === "sprint_id") {
+        throw new Error(
+          "PingCode batch work item update does not support sprint_id; use pingcode_assign_work_items_to_sprint or pingcode_update_work_item instead.",
+        );
+      }
+      return jsonResponse(await client.patch("/v1/project/work_items", args));
+    },
   );
 }
 

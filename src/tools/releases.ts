@@ -156,13 +156,33 @@ export function registerReleaseTools({ server, client }: ToolContext): void {
       ids: z.array(z.string().min(1)).min(1).max(100).describe("Work item ids."),
       sprint_id: z.string().min(1).describe("Sprint id to assign."),
     },
-    async ({ ids, sprint_id }) =>
-      jsonResponse(
-        await client.patch("/v1/project/work_items", {
-          ids,
-          property_name: "sprint_id",
-          property_value: sprint_id,
-        }),
-      ),
+    async ({ ids, sprint_id }) => {
+      const results = [];
+      let updatedCount = 0;
+      let failedCount = 0;
+
+      for (const [index, work_item_id] of ids.entries()) {
+        try {
+          const result = await client.patch(
+            resourcePath("/v1/project/work_items/{work_item_id}", { work_item_id }),
+            { sprint_id },
+          );
+          updatedCount += 1;
+          results.push({ index, work_item_id, ok: true, result });
+        } catch (error) {
+          failedCount += 1;
+          const message = error instanceof Error ? error.message : String(error);
+          results.push({ index, work_item_id, ok: false, error: message });
+        }
+      }
+
+      if (updatedCount === 0) {
+        throw new Error(
+          `No work items were assigned to sprint ${sprint_id}. Check that the sprint and work items are in a scrum/hybrid project, the IDs belong to the same project, the work item types support sprints, and the token can update work items.`,
+        );
+      }
+
+      return jsonResponse({ updated_count: updatedCount, failed_count: failedCount, results });
+    },
   );
 }
